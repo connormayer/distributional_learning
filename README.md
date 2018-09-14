@@ -1,6 +1,6 @@
 # An algorithm for learning phonological classes from distributional similarity
 
-This repository contains the code used in REDACTED (in prep.). I hope that by making the code publicly available, researchers will be able to both extend the algorithm and apply it to their own data sets. A brief description of the components and their usage is given below. See the paper for more details.
+This repository contains the code used in Mayer (submitted). I hope that by making the code publicly available, researchers will be able to both extend the algorithm and apply it to their own data sets. A brief description of the components and their usage is given below. See the paper for more details.
 
 ---
 
