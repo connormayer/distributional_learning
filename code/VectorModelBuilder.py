@@ -12,6 +12,7 @@ DEFAULT_OUTDIR = "../vector_data/"
 TRIGRAM = 'trigram'
 BIGRAM = 'bigram'
 TRIGRAM_BIGRAM = 'trigram_bigram'
+NGRAM = 'ngram'
 
 # Weighting methods
 NONE = 'none'
@@ -29,8 +30,9 @@ class VectorModelBuilder():
     weighting methods. Requires nltk and numpy to be installed.
     """
     def __init__(self, dataset, count_method=TRIGRAM,
-                 weighting=PPMI, outdir=DEFAULT_OUTDIR, outfile=None):
+                 weighting=PPMI, outdir=DEFAULT_OUTDIR, outfile=None, n=3):
         self.count_method = count_method
+        self.n = n
         self.outfile = outfile
         self.outdir = outdir
         self.weighting = weighting
@@ -49,7 +51,8 @@ class VectorModelBuilder():
         self.counting_functions = {
             TRIGRAM: self.count_trigrams,
             BIGRAM: self.count_bigrams,
-            TRIGRAM_BIGRAM: self.count_trigram_bigrams
+            TRIGRAM_BIGRAM: self.count_trigram_bigrams,
+            NGRAM: self.count_ngrams
         }
 
         self.preprocess_dataset(dataset)
@@ -90,6 +93,27 @@ class VectorModelBuilder():
             position_lists[1].append((a, b))
 
         return [position_lists]
+
+    def count_ngrams(self):
+        ngrams = [
+            x for token in self.tokens
+            for x in nltk.ngrams(
+                [WORD_BOUNDARY] * (self.n - 1) + token + [WORD_BOUNDARY] * (self.n - 1),
+                self.n
+            )
+        ]
+
+        position_lists = [[]] * self.n
+
+        for gram in ngrams:
+            for index, symbol in enumerate(gram):
+                if symbol != WORD_BOUNDARY:
+                    listgram = list(gram)
+                    target = listgram.pop(index)
+                    position_lists[index].append((tuple(listgram), target))
+
+        return [position_lists]
+
 
     def count_trigrams(self):
         """
@@ -254,11 +278,15 @@ if __name__ == "__main__":
         '--outdir', type=str, default=DEFAULT_OUTDIR,
         help='The directory to save the vector data in.'
     )
+    parser.add_argument(
+        '--n', default=3, type=int,
+        help='If count_method is "ngram", this specifies n.'
+    )
 
     args = parser.parse_args()
     builder = VectorModelBuilder(
         args.dataset, args.count_method, args.weighting, args.outdir,
-        args.outfile
+        args.outfile, args.n
     )
     builder.create_vector_model()
     builder.save_vector_model()
