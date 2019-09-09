@@ -13,6 +13,14 @@ VALUE_EXT = '.data'
 SOUND_EXT = '.sounds'
 CONTEXT_EXT = '.contexts'
 
+def remove_duplicates(my_list):
+    seen = set()
+    seen_add = seen.add
+    return [
+        x for x in [tuple(y) for y in my_list] 
+        if not (x in seen or seen_add(x))
+    ]
+
 def do_clustering(input_file_stem, output_file, v_scalar=DEFAULT_VARIABILITY_SCALAR, 
                   constrain_partition=False,
                   constrain_pcs=False):
@@ -24,7 +32,7 @@ def do_clustering(input_file_stem, output_file, v_scalar=DEFAULT_VARIABILITY_SCA
 
     classes = [tuple(sounds)]
     classes.extend(find_classes(values, sounds, v_scalar, constrain_partition, constrain_pcs))
-    classes = list(set([tuple(x) for x in classes]))
+    classes = remove_duplicates(classes)
 
     print("Found classes:")
 
@@ -124,15 +132,14 @@ def find_classes(input_data, sounds, v_scalar=DEFAULT_VARIABILITY_SCALAR,
     # Do PCA on the input data
     pca = PCA()
     pca_values = pca.fit_transform(input_data)
-    explained_sdev = [x for x in map(lambda x: x ** 0.5, pca.explained_variance_)]
 
     if constrain_pcs:
         highest_dim = 1
     else:
         # If we're looking at all PCs, calculate which ones we will examine
-        # based on Kaiser's stopping criterion. Cluster into between 1-3 clusters
-        mean_sdev = np.mean(explained_sdev) * v_scalar
-        highest_dim = max(0, np.argmax(explained_sdev < mean_sdev))
+        # based on scaled Kaiser's stopping criterion.
+        mean_eig = np.mean(pca.explained_variance_) * v_scalar
+        highest_dim = max(0, np.argmax(pca.explained_variance_ < mean_eig))
 
     if constrain_partition:
         # Only cluster into a maximum of two classes
@@ -188,8 +195,7 @@ def find_classes(input_data, sounds, v_scalar=DEFAULT_VARIABILITY_SCALAR,
                 sub_classes.extend(found_subclasses)
         # Add classes from this call and all recursive calls to the list of
         # discovered classes.
-        full_classes_list.extend(classes_list)
-        full_classes_list.extend(sub_classes)
+        full_classes_list += classes_list + sub_classes
 
     # Returns founds classes
     return full_classes_list
@@ -222,7 +228,7 @@ if __name__ == "__main__":
         default=DEFAULT_CONSTRAIN_PARTITIONS
     )
     parser.add_argument(
-        '--no_constrain_initial_pcs', action='store_true', 
+        '--no_constrain_initial_pcs', action='store_false', 
         help='A parameter that, if TRUE, restricts the initial partition of the '
         'data set: namely, only the first principal component is considered. '
         'Setting this to FALSE will result in the same classes being detected as '
