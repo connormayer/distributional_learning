@@ -71,6 +71,11 @@ def compute_bic(kmeans, X):
     # size of the clusters
     n = np.bincount(labels)
 
+    if len(n) != m:
+        # We've got a cluster with 0 elements in it. This rarely happens, but
+        # should result in infinite BIC.
+        return -np.inf
+
     lamb = []
     coeff = []
     means = []
@@ -85,21 +90,19 @@ def compute_bic(kmeans, X):
         # If we can't calculate variance within cluster, use minimum distance to point
         # in other cluster.
         if variance == 0 or n[k] == 1:
-            X_sorted = np.copy(X)
-            X_sorted.sort(axis=0)
-            left = np.where(X_sorted == means[k])
-            left[0][0] -= 1
-            right = np.where(X_sorted == means[k])
-            right[0][0] += 1
+            X_sorted = np.copy(X).reshape(1, -1)[0]
+            X_sorted.sort()
+            left = min(np.where(X_sorted == means[k])[0]) - 1
+            right = max(np.where(X_sorted == means[k])[0]) + 1
 
-            if right[0][0] >= len(X):
-                dmin = X_sorted[np.where(X_sorted==means[k])] - X_sorted[left]
-            elif left[0][0] < 0:
-                dmin = X_sorted[right] - X_sorted[np.where(X_sorted==means[k])]
+            if right >= len(X):
+                dmin = X_sorted[left + 1] - X_sorted[left]
+            elif left < 0:
+                dmin = X_sorted[right] - X_sorted[right - 1]
             else:
-                dmin = min(X_sorted[np.where(
-                    X_sorted==means[k])] - X_sorted[left], 
-                    X_sorted[right] - X_sorted[np.where(X_sorted==means[k])]
+                dmin = min(
+                    X_sorted[left + 1] - X_sorted[left], 
+                    X_sorted[right] - X_sorted[right - 1]
                 )
 
             if variance == 0:
@@ -116,6 +119,11 @@ def compute_bic(kmeans, X):
             likelihood += coeff[k] * exp(-(item - means[k]) * (item - means[k]) / (2 * sigmas[k]))
         log_likelihood += log(likelihood)
 
+    # (3 * m - 1) is used because each of the clusters has three associated parameters:
+    # * the cluster centroid coordinate
+    # * the cluster variance
+    # * the cluster probability 
+    # The -1 is because the probabilities must sum to 1, so there are only m-1 free probs.
     bic = 2 * log_likelihood - (3 * m - 1) * log(len(X))
     return bic
 
@@ -159,6 +167,7 @@ def find_classes(input_data, sounds, v_scalar=DEFAULT_VARIABILITY_SCALAR,
         # numbers of clusters
         k_clusters = []
         bics = []
+
         for j in range(1, max_clusters + 1):
             kmeans = KMeans(n_clusters=j)
             k_clusters.append(kmeans.fit(col_reshaped))
