@@ -1,6 +1,6 @@
 # An algorithm for learning phonological classes from distributional similarity
 
-This repository contains the code used in Mayer (submitted). I hope that by making the code publicly available, researchers will be able to both extend the algorithm and apply it to their own data sets. A brief description of the components and their usage is given below. See the paper for more details.
+This repository contains the code used in Mayer, C. (accepted) An algorithm for learning phonological classes from distributional information. *Phonology*. I hope that by making the code publicly available, researchers will be able to both extend the algorithm and apply it to their own data sets. A brief description of the components and their usage is given below. See the paper for more details.
 
 ---
 
@@ -47,14 +47,17 @@ Most Python files can be called from the command line. You can add `--help` to t
     Command line arguments:
 
     * Required positional argument: The path to the corpus file to vectorize.
-    * `--count_method`: The counting method to use when creating the vectors. Options include `bigram`, `trigram`, or `trigram_bigram`. Optional, default `trigram`.
-    * `--weighting`: The weighting method to use on the raw counts when creating the vectors. Options include `probability`, `conditional_probability`, `pmi`, `ppmi`, and `none`. Optional, default `ppmi`.
+
+    Optional arguments:
+    * `--count_method`: The counting method to use when creating the vectors. The program currently supports only the `ngram` method. Default: `ngram`.
+    * `--n`: The value of `n` to use when the `count_method == ngram`. Default: `3`.
+    * `--weighting`: The weighting method to use on the raw counts when creating the vectors. Options include `probability`, `conditional_probability`, `pmi`, `ppmi`, and `none`. Note that if you use unigrams (`n == 1`), `ppmi` and `pmi` will weight all counts to 0 (because there is only a single context with a probability of `1.0`), and conditional probability and probability weightings will be equivalent. Default: `ppmi`.
     * `--outfile`: The base filename to save the output files as. Optional, if not specified the base filename will be the same as the input corpus file.
     * `--outdir`: The directory to save the output files in. Optional, default `../vector_data/`.
 
     An example of usage is:
 
-    `python3 VectorModelBuilder.py ../corpora/parupa.txt --count_method trigram --weighting ppmi --outfile my_vectors --outdir ../vector_data/`
+    `python3 VectorModelBuilder.py ../corpora/parupa.txt --n 3 --weighting ppmi --outfile my_vectors --outdir ../vector_data/`
 
 * **clusterer.py**: Takes a vector embedding as input and generates classes of sounds using the combination of PCA and k-means clustering. Will print the discovered classes to the console and save them to a text file.
 

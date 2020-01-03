@@ -12,12 +12,13 @@ folder.
 DEFAULT_INDIR = '../corpora/noisy_parupa/'
 DEFAULT_OUTDIR = '../vector_data/noisy_parupa/'
 
-def vectorize_dir(indir, outdir, count_method, weighting):
+def vectorize_dir(indir, outdir, count_method, weighting, n):
     corpora = sorted([f for f in listdir(indir) if isfile(join(indir, f))])
     for f in corpora:
         full_path = join(indir, f)
         builder = VectorModelBuilder.VectorModelBuilder(
-            full_path, count_method, weighting, outdir
+            full_path, count_method=count_method, weighting=weighting, 
+            outdir=outdir, n=n
         )
         builder.create_vector_model()
         builder.save_vector_model()
@@ -31,8 +32,8 @@ if __name__ == '__main__':
         help='The directory of corpus files that will be vectorized.'
     )
     parser.add_argument(
-        '--count_method', default=VectorModelBuilder.TRIGRAM, type=str,
-        help='The method to use when created the context matrix.'
+        '--count_method', default=VectorModelBuilder.NGRAM, type=str,
+        help='The method to use when creating the context matrix.'
     )
     parser.add_argument(
         '--weighting', default=VectorModelBuilder.PPMI, type=str,
@@ -42,6 +43,10 @@ if __name__ == '__main__':
         '--outdir', type=str, default=DEFAULT_OUTDIR,
         help='The directory to save the vector data in.'
     )
+    parser.add_argument(
+        '--n', type=int, default=VectorModelBuilder.DEFAULT_N,
+        help='If count_method is "ngram", this specifies n.'
+    )
 
     args = parser.parse_args()
-    vectorize_dir(args.indir, args.outdir, args.count_method, args.weighting)
+    vectorize_dir(args.indir, args.outdir, args.count_method, args.weighting, args.n)

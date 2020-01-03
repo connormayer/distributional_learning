@@ -7,11 +7,10 @@ from os import path
 
 # Default files and directories
 DEFAULT_OUTDIR = "../vector_data/"
+DEFAULT_N = 3
 
 # Counting methods
-TRIGRAM = 'trigram'
-BIGRAM = 'bigram'
-TRIGRAM_BIGRAM = 'trigram_bigram'
+NGRAM = 'ngram'
 
 # Weighting methods
 NONE = 'none'
@@ -28,9 +27,12 @@ class VectorModelBuilder():
     generates a vector embedding under the specified counting and
     weighting methods. Requires nltk and numpy to be installed.
     """
-    def __init__(self, dataset, count_method=TRIGRAM,
-                 weighting=PPMI, outdir=DEFAULT_OUTDIR, outfile=None):
+    def __init__(self, dataset, count_method=NGRAM,
+                 weighting=PPMI, outdir=DEFAULT_OUTDIR, outfile=None, n=3):
         self.count_method = count_method
+        if n < 1:
+            raise ValueError("n = {} is not valid. n must be > 0.".format(n))
+        self.n = n
         self.outfile = outfile
         self.outdir = outdir
         self.weighting = weighting
@@ -46,10 +48,9 @@ class VectorModelBuilder():
             PMI: self.matrix_to_PMI,
             NONE: lambda: True
         }
+        # This is here to allow easy addition of alternative counting methods.
         self.counting_functions = {
-            TRIGRAM: self.count_trigrams,
-            BIGRAM: self.count_bigrams,
-            TRIGRAM_BIGRAM: self.count_trigram_bigrams
+            NGRAM: self.count_ngrams
         }
 
         self.preprocess_dataset(dataset)
@@ -72,56 +73,41 @@ class VectorModelBuilder():
             [item for sublist in self.tokens for item in sublist]
         )
         self.sound_idx = sorted(list(unique_sounds))
-        position_lists = self.counting_functions[self.count_method]()
-        self.calculate_conditional_frequencies(position_lists)
+        count_function = self.counting_functions.get(self.count_method)
+        if not count_function:
+            raise ValueError(
+                "'{}' is not a valid counting method. "
+                "Available counting methods are: {}".format(
+                    self.count_method, ','.join(self.counting_functions.keys())
+                )
+            )
+        else:
+            position_lists = count_function()
+            self.create_count_matrix(position_lists)
 
-    def count_bigrams(self):
+    def count_ngrams(self):
         """
-        Counts bigram occurrences in the token set.
+        Creates a list of all n-grams in the corpus.
         """
-        bigrams = [
+        ngrams = [
             x for token in self.tokens
-            for x in nltk.bigrams([WORD_BOUNDARY] + token + [WORD_BOUNDARY])
-        ]
-        position_lists = [[], []]
-
-        for a, b in bigrams:
-            position_lists[0].append((b, a))
-            position_lists[1].append((a, b))
-
-        return [position_lists]
-
-    def count_trigrams(self):
-        """
-        Counts trigram occurrences in the token set.
-        """
-        trigrams = [
-            x for token in self.tokens
-            for x in nltk.trigrams(
-                [WORD_BOUNDARY] * 2 + token + [WORD_BOUNDARY] * 2
+            for x in nltk.ngrams(
+                [WORD_BOUNDARY] * (self.n - 1) + token + [WORD_BOUNDARY] * (self.n - 1),
+                self.n
             )
         ]
-        position_lists = [[], [], []]
 
-        for a, b, c in trigrams:
-            if a != WORD_BOUNDARY:
-                position_lists[0].append(((b, c), a))
-            if b != WORD_BOUNDARY:
-                position_lists[1].append(((a, c), b))
-            if c != WORD_BOUNDARY:
-                position_lists[2].append(((a, b), c))
+        position_lists = [[] for i in range(self.n)]
+
+        for gram in ngrams:
+            for index, target in enumerate(gram):
+                if target != WORD_BOUNDARY:
+                    context = gram[:index] + gram[index+1:]
+                    position_lists[index].append((context, target))
 
         return [position_lists]
 
-    def count_trigram_bigrams(self):
-        """
-        Counts trigrams and bigrams in the token set.
-        """
-        trigram_positions = self.count_trigrams()
-        bigram_positions = self.count_bigrams()
-        return bigram_positions + trigram_positions
-
-    def calculate_conditional_frequencies(self, position_lists):
+    def create_count_matrix(self, position_lists):
         """
         Calculates the conditional frequencies of each sound in the 
         provided list of n-gram tokens.
@@ -143,11 +129,11 @@ class VectorModelBuilder():
                     context.insert(i, '_')
                     context_label = '-'.join(context)
                     self.context_idx.append(context_label)
+
                     for sound, count in value.items():
-                        if sound != WORD_BOUNDARY:
-                            row = self.sound_idx.index(sound)
-                            col = len(self.context_idx) - 1
-                            self.matrix[row][col] = count
+                        row = self.sound_idx.index(sound)
+                        col = len(self.context_idx) - 1
+                        self.matrix[row][col] = count
 
     def matrix_to_PPMI(self):
         """
@@ -162,10 +148,16 @@ class VectorModelBuilder():
         weighted_matrix = np.zeros(self.matrix.shape)
         denominator = self.matrix.sum()
 
+        # This is calculated a bit differently than in the paper. Rather than
+        # calculating P(s, c) and then using it to calculate P(s) and P(c),
+        # I calculate all three directly from the count matrix.
         for i in range(self.matrix.shape[0]):
+            # P(s)
             p_i = self.matrix[i].sum() / denominator
             for j in range(self.matrix.shape[1]):
+                # P(c)
                 p_j = self.matrix[:, j].sum() / denominator
+                # P(s,c)
                 p_ij = self.matrix[i][j] / denominator
                 if not p_i or not p_j or not p_ij:
                     mi = 0
@@ -203,7 +195,16 @@ class VectorModelBuilder():
         """
         print("Generating vector embedding for {}...".format(self.dataset))
         self.build_matrix()
-        self.weighting_functions[self.weighting]()
+        weighting_function = self.weighting_functions.get(self.weighting)
+        if not weighting_function:
+            raise ValueError(
+                "'{}' is not a valid weighting function. "
+                "Available counting methods are: {}".format(
+                    self.count_method, ','.join(self.weighting_functions.keys())
+                )
+            )
+        else:
+            weighting_function()
 
     def save_vector_model(self):
         """
@@ -214,7 +215,17 @@ class VectorModelBuilder():
         """
         if not self.outfile:
             base_components = [path.splitext(path.split(self.dataset)[1])[0]]
-            base_components.append(self.count_method)
+            count_str = ""
+            if self.count_method == NGRAM:
+                if self.n == 1:
+                    count_str = "unigram"
+                elif self.n == 2:
+                    count_str = "bigram"
+                elif self.n == 3:
+                    count_str = "trigram"
+                else:
+                    count_str = "{}gram".format(self.n)
+            base_components.append(count_str)
             base_components.append(self.weighting)
             base_str = '_'.join(base_components)
         else:
@@ -233,14 +244,20 @@ if __name__ == "__main__":
     Code for generating a vector embedding from the command line.
     """
     parser = argparse.ArgumentParser(
-        description="Create a vector space model for a phonological data set"
+        description="Create a vector space embedding of segments in a "
+                    "phonological data set."
     )
     parser.add_argument(
         'dataset', type=str, help='The corpus to vectorize.'
     )
     parser.add_argument(
-        '--count_method', default=TRIGRAM, type=str,
-        help='The method to use when created the context matrix.'
+        '--count_method', default=NGRAM, type=str,
+        help='The method to use when creating the context matrix. The only '
+             'method currently supported is "ngram".'
+    )
+    parser.add_argument(
+        '--n', default=DEFAULT_N, type=int,
+        help='If count_method is "ngram", this specifies n.'
     )
     parser.add_argument(
         '--weighting', default=PPMI, type=str,
@@ -258,7 +275,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     builder = VectorModelBuilder(
         args.dataset, args.count_method, args.weighting, args.outdir,
-        args.outfile
+        args.outfile, args.n
     )
     builder.create_vector_model()
     builder.save_vector_model()
