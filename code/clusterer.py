@@ -13,6 +13,14 @@ VALUE_EXT = '.data'
 SOUND_EXT = '.sounds'
 CONTEXT_EXT = '.contexts'
 
+def remove_duplicates(my_list):
+    seen = set()
+    seen_add = seen.add
+    return [
+        x for x in [tuple(y) for y in my_list] 
+        if not (x in seen or seen_add(x))
+    ]
+
 def do_clustering(input_file_stem, output_file, v_scalar=DEFAULT_VARIABILITY_SCALAR, 
                   constrain_partition=False,
                   constrain_pcs=False):
@@ -24,7 +32,7 @@ def do_clustering(input_file_stem, output_file, v_scalar=DEFAULT_VARIABILITY_SCA
 
     classes = [tuple(sounds)]
     classes.extend(find_classes(values, sounds, v_scalar, constrain_partition, constrain_pcs))
-    classes = list(set([tuple(x) for x in classes]))
+    classes = remove_duplicates(classes)
 
     print("Found classes:")
 
@@ -63,6 +71,11 @@ def compute_bic(kmeans, X):
     # size of the clusters
     n = np.bincount(labels)
 
+    if len(n) != m:
+        # We've got a cluster with 0 elements in it. This rarely happens, but
+        # should result in infinite BIC.
+        return -np.inf
+
     lamb = []
     coeff = []
     means = []
@@ -77,21 +90,19 @@ def compute_bic(kmeans, X):
         # If we can't calculate variance within cluster, use minimum distance to point
         # in other cluster.
         if variance == 0 or n[k] == 1:
-            X_sorted = np.copy(X)
-            X_sorted.sort(axis=0)
-            left = np.where(X_sorted == means[k])
-            left[0][0] -= 1
-            right = np.where(X_sorted == means[k])
-            right[0][0] += 1
+            X_sorted = np.copy(X).reshape(1, -1)[0]
+            X_sorted.sort()
+            left = min(np.where(X_sorted == means[k])[0]) - 1
+            right = max(np.where(X_sorted == means[k])[0]) + 1
 
-            if right[0][0] >= len(X):
-                dmin = X_sorted[np.where(X_sorted==means[k])] - X_sorted[left]
-            elif left[0][0] < 0:
-                dmin = X_sorted[right] - X_sorted[np.where(X_sorted==means[k])]
+            if right >= len(X):
+                dmin = X_sorted[left + 1] - X_sorted[left]
+            elif left < 0:
+                dmin = X_sorted[right] - X_sorted[right - 1]
             else:
-                dmin = min(X_sorted[np.where(
-                    X_sorted==means[k])] - X_sorted[left], 
-                    X_sorted[right] - X_sorted[np.where(X_sorted==means[k])]
+                dmin = min(
+                    X_sorted[left + 1] - X_sorted[left], 
+                    X_sorted[right] - X_sorted[right - 1]
                 )
 
             if variance == 0:
@@ -108,6 +119,11 @@ def compute_bic(kmeans, X):
             likelihood += coeff[k] * exp(-(item - means[k]) * (item - means[k]) / (2 * sigmas[k]))
         log_likelihood += log(likelihood)
 
+    # (3 * m - 1) is used because each of the clusters has three associated parameters:
+    # * the cluster centroid coordinate
+    # * the cluster variance
+    # * the cluster probability 
+    # The -1 is because the probabilities must sum to 1, so there are only m-1 free probs.
     bic = 2 * log_likelihood - (3 * m - 1) * log(len(X))
     return bic
 
@@ -124,15 +140,14 @@ def find_classes(input_data, sounds, v_scalar=DEFAULT_VARIABILITY_SCALAR,
     # Do PCA on the input data
     pca = PCA()
     pca_values = pca.fit_transform(input_data)
-    explained_sdev = [x for x in map(lambda x: x ** 0.5, pca.explained_variance_)]
 
     if constrain_pcs:
         highest_dim = 1
     else:
         # If we're looking at all PCs, calculate which ones we will examine
-        # based on Kaiser's stopping criterion. Cluster into between 1-3 clusters
-        mean_sdev = np.mean(explained_sdev) * v_scalar
-        highest_dim = max(0, np.argmax(explained_sdev < mean_sdev))
+        # based on scaled Kaiser's stopping criterion.
+        mean_eig = np.mean(pca.explained_variance_) * v_scalar
+        highest_dim = max(0, np.argmax(pca.explained_variance_ < mean_eig))
 
     if constrain_partition:
         # Only cluster into a maximum of two classes
@@ -152,6 +167,7 @@ def find_classes(input_data, sounds, v_scalar=DEFAULT_VARIABILITY_SCALAR,
         # numbers of clusters
         k_clusters = []
         bics = []
+
         for j in range(1, max_clusters + 1):
             kmeans = KMeans(n_clusters=j)
             k_clusters.append(kmeans.fit(col_reshaped))
@@ -188,8 +204,7 @@ def find_classes(input_data, sounds, v_scalar=DEFAULT_VARIABILITY_SCALAR,
                 sub_classes.extend(found_subclasses)
         # Add classes from this call and all recursive calls to the list of
         # discovered classes.
-        full_classes_list.extend(classes_list)
-        full_classes_list.extend(sub_classes)
+        full_classes_list += classes_list + sub_classes
 
     # Returns founds classes
     return full_classes_list
@@ -222,7 +237,7 @@ if __name__ == "__main__":
         default=DEFAULT_CONSTRAIN_PARTITIONS
     )
     parser.add_argument(
-        '--no_constrain_initial_pcs', action='store_true', 
+        '--no_constrain_initial_pcs', action='store_false', 
         help='A parameter that, if TRUE, restricts the initial partition of the '
         'data set: namely, only the first principal component is considered. '
         'Setting this to FALSE will result in the same classes being detected as '
