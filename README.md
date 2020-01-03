@@ -72,7 +72,12 @@ Most Python files can be called from the command line. You can add `--help` to t
     * `--no_constrain_initial_partition`: A parameter that removes restrictions on how initial partition of the data set: namely, it removes the restriction that any partition of the full set of sounds must be into two classes (e.g., consonants vs. vowels, voiced vs. voiceless, etc.).
 
     * `--no_constrain_initial_pcs`: A parameter that removes restrictions on the initial partition of the data set. Namely, it remove the restriction that only the first principal component is considered. Setting this to FALSE will result in the same classes being detected as when it is TRUE, but with additional partitions of the data set potentially discovered as well. Similar results can be gained by increasing the variability scalar, but this will apply to all recursive calls to the clusterer rather than just the top level call.
+    
+* **vectorize_dir.py**: A convenience script that produces vector representations for all corpora in a directory.
 
+    The command line arguments for this script are essentially identical to those for `VectorModelBuilder.py`. The only differences are that the `--outfile` argument has been removed, and the required positional argument specifying the corpus file has been replaced with an optional argument specifying the directory of corpora:
+    
+    * `--indir`: The directory of corpus files that will be vectorized. Default: `../corpora/noisy_parupa'.
  
 ### R files
 
