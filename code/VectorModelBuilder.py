@@ -7,6 +7,7 @@ from os import path
 
 # Default files and directories
 DEFAULT_OUTDIR = "../vector_data/"
+DEFAULT_N = 3
 
 # Counting methods
 NGRAM = 'ngram'
@@ -85,6 +86,9 @@ class VectorModelBuilder():
             self.create_count_matrix(position_lists)
 
     def count_ngrams(self):
+        """
+        Creates a list of all n-grams in the corpus.
+        """
         ngrams = [
             x for token in self.tokens
             for x in nltk.ngrams(
@@ -252,7 +256,7 @@ if __name__ == "__main__":
              'method currently supported is "ngram".'
     )
     parser.add_argument(
-        '--n', default=3, type=int,
+        '--n', default=DEFAULT_N, type=int,
         help='If count_method is "ngram", this specifies n.'
     )
     parser.add_argument(
