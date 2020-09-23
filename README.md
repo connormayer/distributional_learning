@@ -30,7 +30,7 @@ Most Python files can be called from the command line. You can add `--help` to t
 
     An example of usage is:
 
-    `python3 0 0.25 0.5 0.75 1 --corpora_per_level 5 --corpus_size 10000 --outdir /my/great/dir/`
+    `python3 generate_parupa_corpora.py 0 0.25 0.5 0.75 1 --corpora_per_level 5 --corpus_size 10000 --outdir /my/great/dir/`
 
     This command will generate 25 corpora: 5 at noise level 0, 5 at noise level 0.25, etc.
 
