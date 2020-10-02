@@ -1,6 +1,6 @@
 # An algorithm for learning phonological classes from distributional similarity
 
-This repository contains the code used in Mayer, C. (2020) An algorithm for learning phonological classes from distributional information. *Phonology, 37*(1), 91-131. 
+This repository contains the code used in Mayer, C. (2020) An algorithm for learning phonological classes from distributional information. *Phonology 37*(1), 91-131. 
 
 I hope that by making the code publicly available, researchers will be able to both extend the algorithm and apply it to their own data sets. A brief description of the components and their usage is given below. See the paper for more details.
 
