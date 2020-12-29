@@ -1,6 +1,5 @@
 # Running into errors with the do_clustering() funtion
 
-import VectorModelBuilder
 from clusterer import do_clustering
 from VectorModelBuilder import VectorModelBuilder
 import tkinter as tk

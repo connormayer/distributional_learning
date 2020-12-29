@@ -273,9 +273,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    #builder = VectorModelBuilder(
-    #    args.dataset, args.count_method, args.weighting, args.outdir,
-    #    args.outfile, args.n
-    #)
-    #builder.create_vector_model()
-    #builder.save_vector_model()
+    builder = VectorModelBuilder(
+        args.dataset, args.count_method, args.weighting, args.outdir,
+        args.outfile, args.n
+    )
+    builder.create_vector_model()
+    builder.save_vector_model()
