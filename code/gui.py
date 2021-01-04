@@ -1,5 +1,8 @@
+import os
 import tkinter as tk
 from clusterer import do_clustering
+from subprocess import Popen, PIPE
+from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, askdirectory
 from VectorModelBuilder import VectorModelBuilder
 
@@ -56,7 +59,7 @@ def open_dataset_browse():
     dataset_path_ent.delete("0", tk.END)
     dataset_path_ent.insert(tk.END, filepath)
 
-dataset_path_ent = tk.Entry(master=vmb_frame, width=40)
+dataset_path_ent = tk.Entry(master=vmb_frame, width=60)
 dataset_path_ent.grid(row=1, column=1, sticky="w")
 dataset_path_ent.insert(0, VMB_ARGS[0][1])
 dataset_browse = tk.Button(
@@ -87,7 +90,7 @@ def open_outdir_browse():
     outdir_ent.delete("0", tk.END)
     outdir_ent.insert(tk.END, dirpath)
 
-outdir_ent = tk.Entry(master=vmb_frame, width=40)
+outdir_ent = tk.Entry(master=vmb_frame, width=60)
 outdir_ent.grid(row=4, column=1, sticky="w")
 outdir_ent.insert(0, VMB_ARGS[3][1])
 outdir_browse = tk.Button(
@@ -107,12 +110,18 @@ n_ent.insert(0, VMB_ARGS[5][1])
 
 # A dataset is required to run
 def run_vector_model_builder():
-    # Convert value of n from string to int or set the default to 3 if blank
+    # returns an error message if first argument is blank
+    if not dataset_path_ent.get():
+        return messagebox.showwarning(
+            title="Error...", message="Missing Required Argument"
+        )
+
     n_val = n_ent.get()        
     outfile_arg = outf_name_ent.get()
     # Check for the default case of None for output file name
     if outfile_arg == "None":
         outfile_arg = None
+    # Convert value of n from string to int or set the default to 3 if blank
     if not n_val:
         n_val = 3
     else:
@@ -130,7 +139,7 @@ run_VectorModelBuilder = tk.Button(
 )
 run_VectorModelBuilder.grid(row=7, column=0, sticky="w")
 #########################################################################
-################################## Clusterer ##################################
+################################## Clusterer ############################
 clusterer_frame = tk.Frame(master=window)
 clusterer_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nswe")
 
@@ -153,7 +162,7 @@ def open_file_name():
     file_name_ent.delete("0", tk.END)
     file_name_ent.insert(tk.END, filepath[0])
 
-file_name_ent = tk.Entry(master=clusterer_frame, width=40)
+file_name_ent = tk.Entry(master=clusterer_frame, width=60)
 file_name_ent.grid(row=1, column=1, sticky="w")
 file_name_ent.insert(0, CLUSTERER_ARGS[0][1])
 file_name_btn = tk.Button(
@@ -170,7 +179,7 @@ def output_file_browse():
     output_dir_ent.delete("0", tk.END)
     output_dir_ent.insert(tk.END, dirpath)
 
-output_dir_ent = tk.Entry(master=clusterer_frame, width=40)
+output_dir_ent = tk.Entry(master=clusterer_frame, width=60)
 output_dir_ent.grid(row=2, column=1, sticky="w")
 output_dir_ent.insert(0, CLUSTERER_ARGS[1][1])
 output_dir_browse = tk.Button(
@@ -180,7 +189,7 @@ output_dir_browse.grid(row=2, column=2, sticky="w")
 
 # Argument 3 Output File Name
 output_name_ent = tk.Entry(
-    master=clusterer_frame, text=CLUSTERER_ARGS[2], width=40
+    master=clusterer_frame, text=CLUSTERER_ARGS[2], width=60
 )
 output_name_ent.grid(row=3, column=1, sticky="w")
 output_name_ent.insert(0, CLUSTERER_ARGS[2][1])
@@ -207,6 +216,12 @@ constrain_pcs_menu  = tk.OptionMenu(
 constrain_pcs_menu.grid(row=6, column=1, sticky="w")
 
 def run_clusterer():
+    # returns an error message if first argument is blank
+    if not file_name_ent.get():
+        return messagebox.showwarning(
+            title="Error...", message="Missing Required Argument"
+        )
+
     output = output_dir_ent.get() + output_name_ent.get()
     v_scalar = int(v_scalar_ent.get())
     constrain_partition = bool(constrain_partition_var.get())
