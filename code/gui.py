@@ -1,7 +1,6 @@
 import os
 import tkinter as tk
 from clusterer import do_clustering
-from subprocess import Popen, PIPE
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, askdirectory
 from VectorModelBuilder import VectorModelBuilder
@@ -11,7 +10,7 @@ VMB_ARGS = (
     ("Count Method", "ngram"), 
     ("Weighting", "ppmi"), 
     ("Output Directory", "../vector_data/"), 
-    ("Output File Name", "None"), 
+    ("Output File Name", "Default"), 
     ("Value of N", "3")
 )
 CLUSTERER_ARGS = (
@@ -35,8 +34,6 @@ WEIGHT_METHODS = ["ppmi", "probability", "conditional_probability", "pmi", "none
 # Setting up the root of the window
 window = tk.Tk()
 window.title("Distributional Learning")
-#window.columnconfigure(0,minsize=400,weight=1)
-#window.rowconfigure(0,weight=1)
 
 ################### Vector Model Builder ################
 vmb_frame = tk.Frame(master=window)
@@ -119,7 +116,7 @@ def run_vector_model_builder():
     n_val = n_ent.get()        
     outfile_arg = outf_name_ent.get()
     # Check for the default case of None for output file name
-    if outfile_arg == "None":
+    if outfile_arg == "Default":
         outfile_arg = None
     # Convert value of n from string to int or set the default to 3 if blank
     if not n_val:
