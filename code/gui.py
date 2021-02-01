@@ -1,4 +1,5 @@
 import os
+import sys
 import tkinter as tk
 from clusterer import do_clustering
 from tkinter import messagebox
@@ -10,16 +11,16 @@ VMB_ARGS = (
     ("Count Method", "ngram"), 
     ("Weighting", "ppmi"), 
     ("Output Directory", "../vector_data/"), 
-    ("Output File Name", "Default"), 
+    ("Output File Name", "<default name>"), 
     ("Value of N", "3")
 )
 CLUSTERER_ARGS = (
     ("Input Data File", ""), 
-    ("Output File Directory", "../vector_data/"), 
+    ("Output File Directory", "../found_classes/"), 
     ("Output File Name", "classes.txt"), 
     ("V Scalar", "1"), 
-    ("Constrain Partition", "False"), 
-    ("Constrain PCS", "False")
+    ("Constrain Partition", "True"), 
+    ("Constrain PCS", "True")
 )
 LABELS = ["  Run  ","Browse..."]
 BOOL_LABELS = ["True", "False"]
@@ -31,13 +32,17 @@ FILE_TYPE = (
 COUNT_METHODS = ["ngram"]
 WEIGHT_METHODS = ["ppmi", "probability", "conditional_probability", "pmi", "none"]
 
-# Setting up the root of the window
+# Setting up the root of the window, intended to take up a quarter of the screen
+HEIGHT = 500
+WIDTH = 960
 window = tk.Tk()
 window.title("Distributional Learning")
+canvas = tk.Canvas(window, height=HEIGHT, width=WIDTH)
+canvas.grid()
 
 ################### Vector Model Builder ################
 vmb_frame = tk.Frame(master=window)
-vmb_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
+vmb_frame.place(x=10, y=10, relx=0, rely=0, relwidth=0.6)
 vector_model_builder = tk.Label(master=vmb_frame, text="Vector Model Builder")
 vector_model_builder.grid(row=0, column=0, sticky="w")
 # looping to populate labels
@@ -116,7 +121,7 @@ def run_vector_model_builder():
     n_val = n_ent.get()        
     outfile_arg = outf_name_ent.get()
     # Check for the default case of None for output file name
-    if outfile_arg == "Default":
+    if outfile_arg == "<default name>":
         outfile_arg = None
     # Convert value of n from string to int or set the default to 3 if blank
     if not n_val:
@@ -138,7 +143,7 @@ run_VectorModelBuilder.grid(row=7, column=0, sticky="w")
 #########################################################################
 ################################## Clusterer ############################
 clusterer_frame = tk.Frame(master=window)
-clusterer_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nswe")
+clusterer_frame.place(x=10, y=10, relx=0, rely=0.5, relwidth=0.6)
 
 clusterer = tk.Label(master=clusterer_frame, text="Clusterer")
 clusterer.grid(row=0, column=0, sticky="w")
@@ -219,7 +224,7 @@ def run_clusterer():
             title="Error...", message="Missing Required Argument"
         )
 
-    output = output_dir_ent.get() + output_name_ent.get()
+    output = os.path.join(output_dir_ent.get(), output_name_ent.get())
     v_scalar = int(v_scalar_ent.get())
     constrain_partition = bool(constrain_partition_var.get())
     constrain_pcs = bool(constrain_pcs_var.get())
@@ -234,4 +239,23 @@ run_clusterer_btn = tk.Button(
 )
 run_clusterer_btn.grid(row=7, column=0, sticky="w")
 ########################################################################
+###################### stdout & stderr implementation ##################
+
+class TextRedirector(object):
+    def __init__(self, widget, tag="stdout"):
+        self.widget = widget
+        self.tag = tag
+
+    def write(self, str):
+        self.widget.configure(state="normal")
+        self.widget.insert("0.0", str, (self.tag,))
+        self.widget.configure(state="disabled")
+
+text = tk.Text(master=window)
+text.place(y=10, x=10, relx=0.6, rely=0, relwidth=0.4, relheight=1)
+text.insert("end", "\nThis box is for stdout and stderr only.\nNo user input required.")
+text.tag_configure("stderr", foreground="#b22222")
+sys.stdout = TextRedirector(text, "stdout")
+sys.stderr = TextRedirector(text, "stderr")
+
 window.mainloop()
