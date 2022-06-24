@@ -14,7 +14,6 @@ class State():
     """
     A state in the HMM.
     """
-
     def __init__(self, state_num, label=None):
         """
         state_num: The unique numeric identifier for the state.
