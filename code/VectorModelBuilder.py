@@ -2,6 +2,7 @@ import argparse
 import nltk
 import numpy as np
 
+from collections import Counter
 from math import log
 from os import path
 
@@ -28,7 +29,8 @@ class VectorModelBuilder():
     weighting methods. Requires nltk and numpy to be installed.
     """
     def __init__(self, dataset, count_method=NGRAM,
-                 weighting=PPMI, outdir=DEFAULT_OUTDIR, outfile=None, n=3):
+                 weighting=PPMI, outdir=DEFAULT_OUTDIR, outfile=None, n=3,
+                 word2vec=False):
         self.count_method = count_method
         if n < 1:
             raise ValueError("n = {} is not valid. n must be > 0.".format(n))
@@ -52,6 +54,8 @@ class VectorModelBuilder():
         self.counting_functions = {
             NGRAM: self.count_ngrams
         }
+
+        self.word2vec = word2vec
 
         self.preprocess_dataset(dataset)
 
@@ -96,6 +100,8 @@ class VectorModelBuilder():
                 self.n
             )
         ]
+
+        self.ngram_counts = Counter(ngrams)
 
         position_lists = [[] for i in range(self.n)]
 
@@ -227,17 +233,38 @@ class VectorModelBuilder():
                     count_str = "{}gram".format(self.n)
             base_components.append(count_str)
             base_components.append(self.weighting)
+            if self.word2vec:
+                base_components.append('word2vec')
             base_str = '_'.join(base_components)
         else:
             base_str = self.outfile
 
-        np.savetxt(path.join(
-            self.outdir, '{}.data'.format(base_str)), self.matrix, fmt='%f'
-        )
-        with open(path.join(self.outdir, '{}.sounds'.format(base_str)), 'w') as f:
-            print(' '.join(self.sound_idx), file=f)
-        with open(path.join(self.outdir, '{}.contexts'.format(base_str)), 'w') as f:
-            print(' '.join(self.context_idx), file=f)
+        if not self.word2vec:
+            np.savetxt(path.join(
+                self.outdir, '{}.data'.format(base_str)), self.matrix, fmt='%f'
+            )
+            with open(path.join(self.outdir, '{}.sounds'.format(base_str)), 'w') as f:
+                print(' '.join(self.sound_idx), file=f)
+            with open(path.join(self.outdir, '{}.contexts'.format(base_str)), 'w') as f:
+                print(' '.join(self.context_idx), file=f)
+        else:
+            # Write embedding file in word2vec format
+            with open(path.join(self.outdir, '{}.w2v'.format(base_str)), 'w') as f:
+                f.write("{} {}\n".format(*self.matrix.shape))
+                for i, sound in enumerate(self.sound_idx):
+                    embedding = self.matrix[i]
+                    row = '{} {}\n'.format(sound, ' '.join(map(str, embedding)))
+                    f.write(row)
+
+            # Write ngram counts file
+            with open(path.join(self.outdir, '{}.ngrams'.format(base_str)), 'w') as f:
+                for ngram, count in self.ngram_counts.items():
+                    row = ','.join(list(ngram) + [str(count)]) + '\n'
+                    f.write(row)
+
+            # Record contexts too in case we need them later
+            with open(path.join(self.outdir, '{}.contexts'.format(base_str)), 'w') as f:
+                print(' '.join(self.context_idx), file=f)
 
 if __name__ == "__main__":
     """
@@ -271,11 +298,15 @@ if __name__ == "__main__":
         '--outdir', type=str, default=DEFAULT_OUTDIR,
         help='The directory to save the vector data in.'
     )
+    parser.add_argument(
+        '--word2vec', action="store_true",
+        help='Output embeddings will be in word2vec format'
+    )
 
     args = parser.parse_args()
     builder = VectorModelBuilder(
         args.dataset, args.count_method, args.weighting, args.outdir,
-        args.outfile, args.n
+        args.outfile, args.n, args.word2vec
     )
     builder.create_vector_model()
     builder.save_vector_model()
