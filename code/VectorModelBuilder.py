@@ -77,6 +77,8 @@ class VectorModelBuilder():
             [item for sublist in self.tokens for item in sublist]
         )
         self.sound_idx = sorted(list(unique_sounds))
+        if self.word2vec:
+            self.sound_idx.append('#')
         count_function = self.counting_functions.get(self.count_method)
         if not count_function:
             raise ValueError(
@@ -107,7 +109,7 @@ class VectorModelBuilder():
 
         for gram in ngrams:
             for index, target in enumerate(gram):
-                if target != WORD_BOUNDARY:
+                if target != WORD_BOUNDARY or self.word2vec:
                     context = gram[:index] + gram[index+1:]
                     position_lists[index].append((context, target))
 
