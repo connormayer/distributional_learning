@@ -66,7 +66,8 @@ class VectorModelBuilder():
         self.dataset = dataset
         with open(self.dataset, 'r') as f:
             tokens = f.read()
-        self.tokens = set([tuple(s.split(" ")) for s in tokens.split("\n") if s])
+        self.full_tokens = [s.split(" ") for s in tokens.split("\n") if s]
+        self.tokens = set([tuple(x) for x in self.full_tokens])
         self.tokens = [list(token) for token in self.tokens]
 
     def build_matrix(self):
@@ -95,7 +96,7 @@ class VectorModelBuilder():
         """
         Creates a list of all n-grams in the corpus.
         """
-        ngrams = [
+        type_ngrams = [
             x for token in self.tokens
             for x in nltk.ngrams(
                 [WORD_BOUNDARY] * (self.n - 1) + token + [WORD_BOUNDARY] * (self.n - 1),
@@ -103,11 +104,20 @@ class VectorModelBuilder():
             )
         ]
 
-        self.ngram_counts = Counter(ngrams)
+        token_ngrams = [
+            x for token in self.full_tokens
+            for x in nltk.ngrams(
+                [WORD_BOUNDARY] * (self.n - 1) + token + [WORD_BOUNDARY] * (self.n - 1),
+                self.n
+            )
+        ]
+
+        self.ngram_counts = Counter(type_ngrams)
+        self.full_ngram_counts = Counter(token_ngrams)
 
         position_lists = [[] for i in range(self.n)]
 
-        for gram in ngrams:
+        for gram in type_ngrams:
             for index, target in enumerate(gram):
                 if target != WORD_BOUNDARY or self.word2vec:
                     context = gram[:index] + gram[index+1:]
@@ -260,7 +270,7 @@ class VectorModelBuilder():
 
             # Write ngram counts file
             with open(path.join(self.outdir, '{}.ngrams'.format(base_str)), 'w') as f:
-                for ngram, count in self.ngram_counts.items():
+                for ngram, count in self.full_ngram_counts.items():
                     row = ','.join(list(ngram) + [str(count)]) + '\n'
                     f.write(row)
 
